@@ -2,9 +2,9 @@ name: CI / Build & Test
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -14,27 +14,34 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+    - name: Make Gradle wrapper executable
+      run: chmod +x gradlew
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
       with:
-        dotnet-version: '8.0.x'
+        distribution: 'temurin'
+        java-version: '21'
         
-    - name: Cache NuGet packages
+    - name: Cache Gradle packages
       uses: actions/cache@v4
       with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
-          ${{ runner.os }}-nuget-
+          ${{ runner.os }}-gradle-
           
-    - name: Restore
-      run: dotnet restore
+    - name: Build with tests
+      run: ./gradlew build
       
-    - name: Build
-      run: dotnet build --no-restore -c Release
+    - name: Run tests with report
+      run: ./gradlew test
       
-    - name: Test
-      run: dotnet test --no-build -c Release --verbosity normal
-      
-    - name: Pack
-      run: dotnet pack Todo.Core/Todo.Core.csproj -c Release -o ./artifacts
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: build/reports/tests/test/
