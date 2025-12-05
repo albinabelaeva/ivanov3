@@ -14,34 +14,27 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       
-    - name: Make Gradle wrapper executable
-      run: chmod +x gradlew
-      
-    - name: Setup Java
-      uses: actions/setup-java@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
       with:
-        distribution: 'temurin'
-        java-version: '21'
+        dotnet-version: '8.0.x'
         
-    - name: Cache Gradle packages
+    - name: Cache NuGet packages
       uses: actions/cache@v4
       with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
         restore-keys: |
-          ${{ runner.os }}-gradle-
+          ${{ runner.os }}-nuget-
           
-    - name: Build with tests
-      run: ./gradlew build
+    - name: Restore
+      run: dotnet restore
       
-    - name: Run tests with report
-      run: ./gradlew test
+    - name: Build
+      run: dotnet build --no-restore -c Release
       
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: build/reports/tests/test/
+    - name: Test
+      run: dotnet test --no-build -c Release --verbosity normal
+      
+    - name: Pack
+      run: dotnet pack Todo.Core/Todo.Core.csproj -c Release -o ./artifacts
